@@ -1,0 +1,64 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+    namespace 'com.ace77505.storageredirect'
+    compileSdk {
+        version = release(36)
+    }
+
+    defaultConfig {
+        applicationId "com.ace77505.storageredirect"
+        minSdk 21
+        targetSdk 36
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        release {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+
+    File propFile = rootProject.file('signing.properties')
+    if (propFile.exists()) {
+        Properties props = new Properties()
+        props.load(new FileInputStream(propFile))
+        if (props.containsKey('STORE_FILE') && props.containsKey('STORE_PASSWORD') &&
+                props.containsKey('KEY_ALIAS') && props.containsKey('KEY_PASSWORD')) {
+            signingConfigs.release.storeFile = rootProject.file(props['STORE_FILE'])
+            signingConfigs.release.storePassword = props['STORE_PASSWORD']
+            signingConfigs.release.keyAlias = props['KEY_ALIAS']
+            signingConfigs.release.keyPassword = props['KEY_PASSWORD']
+        } else {
+            android.buildTypes.release.signingConfig = null
+        }
+    } else {
+        android.buildTypes.release.signingConfig = null
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+
+dependencies {
+    //implementation(libs.androidx.core.ktx)
+
+    compileOnly(files("lib/XposedBridgeAPI-82.jar"))
+}
