@@ -13,15 +13,15 @@
 - `getExternalCacheDir()`
 - `getExternalCacheDirs()`
 
-当应用调用上述 API 时，模块立即返回 **提前创建好的目录**， **直接命中 `/data/user/0/<package_name>/Android/data|cache`**。
+当应用调用上述 API 时，模块立即返回 **提前创建好的目录**， **直接命中 `/data/user/0/<package_name>/Android/files|cache`**。
 
 ---
 
 ## 重定向目标路径
 
-| 原返回值（未重定向） | 重定向后真实路径 |
-|---|---|
-| `/sdcard/Android/data/<package_name>/files` | `/data/user/0/<package_name>/Android/data` |
+| 原返回值（未重定向） | 重定向后真实路径                                    |
+|---|---------------------------------------------|
+| `/sdcard/Android/data/<package_name>/files` | `/data/user/0/<package_name>/Android/files` |
 | `/sdcard/Android/data/<package_name>/cache` | `/data/user/0/<package_name>/Android/cache` |
 
 &gt; 路径随多用户/工作资料库自动适配，无需手动干预。
