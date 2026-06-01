@@ -16,6 +16,9 @@ public final class MainHook implements IXposedHookLoadPackage {
     public static final String SYSTEM_FRAMEWORK = "android";
     public static final String TAG = "StorageRedirect";
 
+    // 超星学习通包名常量
+    private static final String CHAOXING_PKG = "com.chaoxing.mobile";
+
     /* ---------------- 缓存容器 ---------------- */
     public static final ConcurrentSkipListSet<String> hookedPackages = new ConcurrentSkipListSet<>();
     public static final ConcurrentHashMap<String, File> dataDirCache   = new ConcurrentHashMap<>();
@@ -54,7 +57,7 @@ public final class MainHook implements IXposedHookLoadPackage {
         Boolean cached = dirExistCache.get(cacheKey);
         if (cached != null) {
             XposedBridge.log(TAG + "[" + packageName + "]: initAppDirectories cached hit: " + cached);
-            return cached;          // 缓存命中直接返回，添加日志
+            return cached;          // 缓存命中直接返回
         }
 
         Boolean result = safeCall("initAppDirectories", packageName, () -> {
@@ -72,7 +75,7 @@ public final class MainHook implements IXposedHookLoadPackage {
             if (!baseDir.exists() && !baseDir.mkdirs()) return false;
             ensurePermissions(baseDir);
 
-            /* 按需补建 data / cache；只有真正发生 mkdirs 且成功才打印 */
+            /* 按需补建 data / cache */
             boolean dataOk  = data.exists()  || (data.mkdirs()  && logMkdir(packageName, "data"));
             boolean cacheOk = cache.exists() || (cache.mkdirs() && logMkdir(packageName, "cache"));
 
@@ -89,10 +92,11 @@ public final class MainHook implements IXposedHookLoadPackage {
         if (!ok) XposedBridge.log(TAG + "[" + packageName + "]: initAppDirectories FAILED");
         return ok;
     }
+
     /* 仅打印 mkdirs 成功且真实发生时的日志 */
     public static boolean logMkdir(String pkg, String type) {
         XposedBridge.log(TAG + "[" + pkg + "]: mkdirs " + type);
-        return true; // 便于链式写进逻辑与
+        return true;
     }
 
     public static File getAppDataDir(Object context, String packageName) {
@@ -110,13 +114,38 @@ public final class MainHook implements IXposedHookLoadPackage {
         File dataDir = getAppDataDir(context, packageName);
         if (dataDir == null) return null;
         if (!initAppDirectories(dataDir, packageName)) return null;
+
         String cacheKey = packageName + ":" + subDir;
         File cached = redirectDirCache.get(cacheKey);
         if (cached != null && cached.exists()) return cached;
+
         return safeCall("getRedirectDir", packageName, () -> {
-            File redirectDir = new File(new File(dataDir, "Android"), subDir);
+            // 解析实际子目录：
+            //   - 非学习通应用：getExternalFilesDir → Android/files，不走 Android/data
+            //   - 学习通应用：保持原有行为 → Android/data → 再嵌套 files
+            //   - cache 不受影响 → Android/cache
+            String effectiveSubDir = subDir;
+            if ("data".equals(subDir) && !CHAOXING_PKG.equals(packageName)) {
+                effectiveSubDir = "files";
+            }
+            // 基础重定向路径：/data/user/0/包名/Android/{data|cache|files}
+            File redirectDir = new File(new File(dataDir, "Android"), effectiveSubDir);
+
+            // 【针对超星学习通的特殊处理】
+            // 如果是学习通且当前请求的是 Files 目录 ("data")，则将路径延伸至 Android/data/files
+            if (CHAOXING_PKG.equals(packageName) && "data".equals(subDir)) {
+                redirectDir = new File(redirectDir, "files");
+            }
+
+            // 统一检查文件夹是否存在，不存在则创建
             if (redirectDir.exists() || redirectDir.mkdirs()) {
-                if (!redirectDir.exists()) ensurePermissions(redirectDir);
+                if (!redirectDir.exists()) {
+                    ensurePermissions(redirectDir);
+                }
+                // 如果是超星新创建了 files 目录，打印一条日志方便调试
+                if (CHAOXING_PKG.equals(packageName) && "data".equals(subDir)) {
+                    XposedBridge.log(TAG + "[" + packageName + "]: target files dir checked/created: " + redirectDir.getAbsolutePath());
+                }
                 redirectDirCache.put(cacheKey, redirectDir);
                 return redirectDir;
             }
