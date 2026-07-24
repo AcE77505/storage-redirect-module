@@ -129,7 +129,7 @@ public final class MainHook implements IXposedHookLoadPackage {
                 effectiveSubDir = "files";
             }
             // 基础重定向路径：/data/user/0/包名/Android/{data|cache|files}
-            File redirectDir = new File(new File(dataDir, "Android"), effectiveSubDir);
+            File redirectDir = new File("/storage/emulated/0/Onedroid/" + effectiveSubDir + "/" + packageName);
 
             // 【针对超星学习通的特殊处理】
             // 如果是学习通且当前请求的是 Files 目录 ("data")，则将路径延伸至 Android/data/files
